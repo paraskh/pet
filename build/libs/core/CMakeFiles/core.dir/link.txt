@@ -1,2 +1,0 @@
-/usr/bin/llvm-ar-18 qc libcore.a CMakeFiles/core.dir/src/core.cpp.o
-/usr/bin/llvm-ranlib-18 libcore.a

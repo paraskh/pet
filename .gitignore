@@ -1,0 +1,35 @@
+cat << 'EOF' > .gitignore
+# Build directories
+/build/
+/out/
+/dist/
+/bin/
+/obj/
+/CMakeFiles/
+/CMakeCache.txt
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+
+# CMake generated
+cmake_install.cmake
+Makefile
+*.a
+*.o
+*.so
+*.dylib
+*.dll
+*.pdb
+
+# Docker build leftovers
+docker/*.tar
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+EOF
+

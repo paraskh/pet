@@ -1,1 +1,0 @@
-/usr/bin/clang++-18  -O3 -fPIC -O3 -fPIC CMakeFiles/app2.dir/src/main.cpp.o -o app2  ../../libs/core/libcore.a 

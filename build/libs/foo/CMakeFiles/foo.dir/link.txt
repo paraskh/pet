@@ -1,2 +1,0 @@
-/usr/bin/llvm-ar-18 qc libfoo.a CMakeFiles/foo.dir/foo.cpp.o
-/usr/bin/llvm-ranlib-18 libfoo.a
