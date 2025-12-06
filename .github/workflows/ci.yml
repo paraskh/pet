@@ -1,0 +1,49 @@
+name: PET CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  build:
+    name: Build PET using toolchain
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull toolchain image
+        run: docker pull ghcr.io/${{ github.repository_owner }}/pet-toolchain:latest
+
+      - name: Build project inside container
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            ghcr.io/${{ github.repository_owner }}/pet-toolchain:latest \
+            bash -c "
+              set -e
+              cd /workspace
+              cmake -B build -S .
+              cmake --build build -j
+            "
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pet-build
+          path: build/
+
