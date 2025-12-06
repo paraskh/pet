@@ -18,14 +18,14 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
 
       - name: Pull toolchain image
-        run: docker pull ghcr.io/paraskh/pet/pet-toolchain:latest
+        run: docker pull ghcr.io/paraskh/pet-toolchain:latest
 
       - name: Build inside toolchain container
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
-            ghcr.io/paraskh/pet/pet-toolchain:latest \
+            ghcr.io/paraskh/pet-toolchain:latest \
             bash -c "
               cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=cmake/pet_toolchain.cmake &&
               cmake --build build -j
