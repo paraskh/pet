@@ -1,0 +1,2 @@
+/usr/bin/llvm-ar-18 qc libutils.a CMakeFiles/utils.dir/src/utils.cpp.o
+/usr/bin/llvm-ranlib-18 libutils.a
