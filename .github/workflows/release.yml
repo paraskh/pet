@@ -1,5 +1,9 @@
 name: Auto Release
 
+permissions:
+  contents: write    # required to push tags + create releases
+  packages: read
+
 on:
   workflow_dispatch:
     inputs:

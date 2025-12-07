@@ -1,5 +1,8 @@
 name: PET CI + Releases
 
+permissions:
+  contents: read      # CI only needs read access to repo contents
+  packages: read      # CI pulls your GHCR toolchain image
 on:
   push:
     branches: [ main ]
