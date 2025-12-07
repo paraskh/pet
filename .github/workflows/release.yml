@@ -1,21 +1,17 @@
-name: Auto Release
-
-permissions:
-  contents: write    # required to push tags + create releases
-  packages: read
+name: PET Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      component:
-        description: "Component to release (e.g. dummy_app, md-binance, lib-orderbook)"
-        required: true
-      bump:
-        description: "Version bump type: major | minor | patch"
-        required: true
+  push:
+    tags:
+      - "*"     # any tag triggers release
+
+permissions:
+  contents: write      # required to create releases + upload assets
+  packages: read       # required to pull GHCR toolchain image
+  actions: read
 
 jobs:
-  generate-tag:
+  release:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,45 +20,41 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get latest tag for this component
-        id: last
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
+
+      - name: Pull toolchain image
+        run: docker pull ghcr.io/paraskh/pet-toolchain:latest
+
+      - name: Build inside toolchain
         run: |
-          COMPONENT="${{ github.event.inputs.component }}"
-          TAGS=$(git tag --list "${COMPONENT}-v*" | sort -V)
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            ghcr.io/paraskh/pet-toolchain:latest \
+            bash -c "
+              cd /workspace &&
+              cmake -B build-Release -S . -DCMAKE_BUILD_TYPE=Release &&
+              cmake --build build-Release -j &&
+              cmake --install build-Release --prefix dist
+            "
 
-          if [ -z "$TAGS" ]; then
-            LAST_VERSION="0.0.0"
-          else
-            LAST_VERSION=$(echo "$TAGS" | tail -n1 | sed "s/${COMPONENT}-v//")
-          fi
+      - name: Verify dist directory
+        run: ls -R dist
 
-          echo "last_version=$LAST_VERSION" >> $GITHUB_OUTPUT
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pet-dist
+          path: dist/**
+          if-no-files-found: error
 
-      - name: Compute next version
-        id: bump
-        run: |
-          BUMP="${{ github.event.inputs.bump }}"
-          CUR="${{ steps.last.outputs.last_version }}"
-
-          IFS='.' read -r MAJ MIN PAT <<< "$CUR"
-
-          case "$BUMP" in
-            major) MAJ=$((MAJ+1)); MIN=0; PAT=0 ;;
-            minor) MIN=$((MIN+1)); PAT=0 ;;
-            patch) PAT=$((PAT+1)) ;;
-            *) echo "invalid bump type '$BUMP'"; exit 1 ;;
-          esac
-
-          NEW="$MAJ.$MIN.$PAT"
-          TAG="${{ github.event.inputs.component }}-v${NEW}"
-
-          echo "new_tag=$TAG" >> $GITHUB_OUTPUT
-          echo "New tag: $TAG"
-
-      - name: Create and push tag
-        run: |
-          git config user.name "GitHub CI"
-          git config user.email "ci@github.com"
-          git tag ${{ steps.bump.outputs.new_tag }}
-          git push origin ${{ steps.bump.outputs.new_tag }}
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: PET Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: |
+            dist/**
 
