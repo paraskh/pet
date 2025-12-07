@@ -1,8 +1,10 @@
-name: CI
+name: PET CI + Releases
 
 on:
   push:
     branches: [ main ]
+    tags:
+      - "*"        # any tag -> triggers release job
   pull_request:
     branches: [ main ]
 
@@ -11,8 +13,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Log in to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
@@ -20,14 +24,94 @@ jobs:
       - name: Pull toolchain image
         run: docker pull ghcr.io/paraskh/pet-toolchain:latest
 
-      - name: Build inside toolchain container
+      - name: Configure & Build (Release) inside toolchain
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
             ghcr.io/paraskh/pet-toolchain:latest \
             bash -c "
-              cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=cmake/pet_toolchain.cmake &&
-              cmake --build build -j
+              cmake -B build-Release -S . \
+                -DCMAKE_TOOLCHAIN_FILE=cmake/pet_toolchain.cmake \
+                -DCMAKE_BUILD_TYPE=Release \
+              && cmake --build build-Release -j
             "
+
+      - name: Run tests (if any)
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            ghcr.io/paraskh/pet-toolchain:latest \
+            bash -c "
+              ctest --test-dir build-Release --output-on-failure || true
+            "
+
+      - name: Install to dist/
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            ghcr.io/paraskh/pet-toolchain:latest \
+            bash -c "
+              cmake --install build-Release --prefix /workspace/dist
+            "
+
+      - name: Upload dist/ as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pet-dist
+          path: dist
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Parse component + version from tag
+        id: info
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          COMPONENT="${TAG%-v*}"
+          VERSION="${TAG##*-v}"
+
+          echo "component=$COMPONENT" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Download dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pet-dist
+          path: dist
+
+      - name: Create release package (.tar.gz)
+        run: |
+          COMP="${{ steps.info.outputs.component }}"
+          VERSION="${{ steps.info.outputs.version }}"
+
+          mkdir -p release_root/bin release_root/lib
+
+          # copy binary if present
+          if [ -f "dist/bin/$COMP" ]; then
+            cp "dist/bin/$COMP" release_root/bin/
+          else
+            echo "WARNING: dist/bin/$COMP not found"
+          fi
+
+          # copy all shared libs
+          if ls dist/lib/*.so >/dev/null 2>&1; then
+            cp dist/lib/*.so release_root/lib/ || true
+          fi
+
+          tar czf "${COMP}-${VERSION}.tar.gz" -C release_root .
+
+      - name: Upload GitHub Release Artifact
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ${{ steps.info.outputs.component }}-${{ steps.info.outputs.version }}.tar.gz
 
