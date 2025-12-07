@@ -7,6 +7,9 @@ cat << 'EOF' > .gitignore
 /obj/
 /CMakeFiles/
 /CMakeCache.txt
+build*/
+**/build*/
+dist/
 
 # IDE files
 .vscode/

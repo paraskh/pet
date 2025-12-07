@@ -4,6 +4,24 @@ if(POLICY CMP0144)
 endif()
 project(pet LANGUAGES C CXX)
 
+option(PET_ENABLE_SANITIZERS "Enable Address/UB sanitizers" OFF)
+
+if(PET_ENABLE_SANITIZERS)
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined)
+endif()
+
+set(Boost_USE_STATIC_LIBS ON)
+set(Boost_USE_STATIC_RUNTIME ON)
+
+# Global OpenSSL hints for static toolchain
+set(OPENSSL_ROOT_DIR "/opt/deps")
+set(OPENSSL_USE_STATIC_LIBS TRUE)
+set(OPENSSL_INCLUDE_DIR "/opt/deps/include")
+set(OPENSSL_CRYPTO_LIBRARY "/opt/deps/lib64/libcrypto.a")
+set(OPENSSL_SSL_LIBRARY "/opt/deps/lib64/libssl.a")
+
+
 # Make all targets position independent (good for shared libs)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 

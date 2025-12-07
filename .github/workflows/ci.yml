@@ -4,13 +4,18 @@ on:
   push:
     branches: [ main ]
     tags:
-      - "*"        # any tag -> triggers release job
+      - "*"          # tag like dummy_app-v0.1.0 triggers release job
   pull_request:
     branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Release, DebugSan]
 
     steps:
       - name: Checkout
@@ -24,20 +29,22 @@ jobs:
       - name: Pull toolchain image
         run: docker pull ghcr.io/paraskh/pet-toolchain:latest
 
-      - name: Configure & Build (Release) inside toolchain
+      - name: Configure & Build inside toolchain
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
             ghcr.io/paraskh/pet-toolchain:latest \
             bash -c "
-              cmake -B build-Release -S . \
+              cmake -B build-${{ matrix.build_type }} -S . \
                 -DCMAKE_TOOLCHAIN_FILE=cmake/pet_toolchain.cmake \
-                -DCMAKE_BUILD_TYPE=Release \
-              && cmake --build build-Release -j
+                -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+                -DPET_ENABLE_SANITIZERS=$([[ '${{ matrix.build_type }}' == 'DebugSan' ]] && echo ON || echo OFF) \
+              && cmake --build build-${{ matrix.build_type }} -j
             "
 
-      - name: Run tests (if any)
+      - name: Run tests (Release only)
+        if: matrix.build_type == 'Release'
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
@@ -47,7 +54,8 @@ jobs:
               ctest --test-dir build-Release --output-on-failure || true
             "
 
-      - name: Install to dist/
+      - name: Install (Release only) to dist/
+        if: matrix.build_type == 'Release'
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
@@ -57,7 +65,8 @@ jobs:
               cmake --install build-Release --prefix /workspace/dist
             "
 
-      - name: Upload dist/ as artifact
+      - name: Upload dist/ as artifact (Release only)
+        if: matrix.build_type == 'Release'
         uses: actions/upload-artifact@v4
         with:
           name: pet-dist
@@ -76,6 +85,7 @@ jobs:
         id: info
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
+
           COMPONENT="${TAG%-v*}"
           VERSION="${TAG##*-v}"
 
@@ -93,23 +103,36 @@ jobs:
           COMP="${{ steps.info.outputs.component }}"
           VERSION="${{ steps.info.outputs.version }}"
 
-          mkdir -p release_root/bin release_root/lib
+          mkdir -p release_root/bin release_root/lib include
 
-          # copy binary if present
+          # App binary if exists
           if [ -f "dist/bin/$COMP" ]; then
-            cp "dist/bin/$COMP" release_root/bin/
+            cp "dist/bin/$COMP" "release_root/bin/"
           else
-            echo "WARNING: dist/bin/$COMP not found"
+            echo "WARNING: dist/bin/$COMP not found (maybe lib-only component?)"
           fi
 
-          # copy all shared libs
+          # Component-specific lib (optional)
+          if [ -f "dist/lib/lib${COMP}.so" ]; then
+            cp "dist/lib/lib${COMP}.so" "release_root/lib/"
+          elif [ -f "dist/lib/lib${COMP}.a" ]; then
+            cp "dist/lib/lib${COMP}.a" "release_root/lib/"
+          fi
+
+          # Include all shared libs for safety
           if ls dist/lib/*.so >/dev/null 2>&1; then
             cp dist/lib/*.so release_root/lib/ || true
           fi
 
+          # Include headers for that component if they exist
+          if [ -d "dist/include/${COMP}" ]; then
+            mkdir -p "release_root/include/${COMP}"
+            cp -r "dist/include/${COMP}/" "release_root/include/${COMP}/"
+          fi
+
           tar czf "${COMP}-${VERSION}.tar.gz" -C release_root .
 
-      - name: Upload GitHub Release Artifact
+      - name: GitHub Release with artifact
         uses: softprops/action-gh-release@v1
         with:
           files: |

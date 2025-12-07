@@ -1,2 +1,6 @@
 #!/usr/bin/env bash
-echo "Enter toolchain container (placeholder)."
+docker run --rm -it \
+  -v "$(pwd)":/workspace \
+  -w /workspace \
+  ghcr.io/paraskh/pet-toolchain:latest \
+  bash

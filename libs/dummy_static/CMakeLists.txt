@@ -7,10 +7,16 @@ target_include_directories(dummy_static
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-# Install static lib + headers
+# Install static library
 install(TARGETS dummy_static
-        ARCHIVE DESTINATION lib)
+    ARCHIVE DESTINATION lib          # static libs: .a
+    LIBRARY DESTINATION lib          # not used for static, but safe for future
+    RUNTIME DESTINATION bin          # Windows / DLL cases (not used now)
+)
 
+# Install public headers
 install(DIRECTORY include/
-        DESTINATION include)
+    DESTINATION include
+    FILES_MATCHING PATTERN "*.hpp"
+)
 
