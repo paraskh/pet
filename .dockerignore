@@ -1,0 +1,62 @@
+# Build directories
+build/
+out/
+dist/
+bin/
+obj/
+**/build*/
+**/CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+**/Makefile
+
+# Compiled binaries and objects
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.pdb
+*.exe
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docker files (don't need in build context)
+docker/*.tar
+.dockerignore
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation (optional - include if you want)
+# README.md
+# docs/
+
+# CI/CD (not needed in Docker context)
+.github/
+
+# Test artifacts
+*.gcov
+*.gcda
+*.gcno
+
+# Temporary files
+*.tmp
+*.bak
+*.cache
+

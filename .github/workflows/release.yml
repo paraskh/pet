@@ -30,10 +30,12 @@ jobs:
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
             ghcr.io/paraskh/pet-toolchain:latest \
             bash -c "
-              cd /workspace &&
-              cmake -B build-Release -S . -DCMAKE_BUILD_TYPE=Release &&
+              cmake -B build-Release -S . \
+                -DCMAKE_TOOLCHAIN_FILE=cmake/pet_toolchain.cmake \
+                -DCMAKE_BUILD_TYPE=Release &&
               cmake --build build-Release -j &&
               cmake --install build-Release --prefix dist
             "

@@ -1,0 +1,32 @@
+{
+    "name": "PET Dev",
+    "image": "ghcr.io/paraskh/pet-toolchain:latest",
+    "remoteUser": "root",
+
+    "runArgs": [
+        "--platform=linux/amd64",
+        "--privileged",
+        "--network=host"
+    ],
+
+    "mounts": [
+        "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
+    ],
+
+    "workspaceFolder": "/workspace",
+
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "bash",
+                "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
+            },
+            "extensions": [
+                "ms-vscode.cmake-tools",
+                "ms-vscode.cpptools",
+                "llvm-vs-code-extensions.vscode-clangd"
+            ]
+        }
+    }
+}
+
